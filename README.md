@@ -2,6 +2,8 @@
 
 DocFlow is a polished, lightweight, collaborative document workspace built as an intentionally scoped Full-Stack MVP for the AI-Native Full Stack Developer assessment.
 
+🔗 **Live Demo**: [https://docflow-lyart-omega.vercel.app/](https://docflow-lyart-omega.vercel.app/)
+
 ---
 
 ## 🚀 Overview
@@ -118,6 +120,9 @@ npm run build
 ---
 
 ## 🌐 Deployment to Vercel
+
+The application is deployed and live at:
+🔗 **[https://docflow-lyart-omega.vercel.app/](https://docflow-lyart-omega.vercel.app/)**
 
 To deploy to production using Vercel CLI:
 1. Initialize project setup:

@@ -17,7 +17,7 @@ function escapeHtml(value: string): string {
 export function parseTxtOrMdToHtml(text: string): string {
   if (!text) return '';
   return text
-    .split(/\r?\n/)
+    .split(/\r\n|\n|\r/)
     .map(line => line.trim() ? `<p>${escapeHtml(line)}</p>` : '<p><br></p>')
     .join('');
 }

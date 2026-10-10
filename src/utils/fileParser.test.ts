@@ -13,4 +13,8 @@ describe('parseTxtOrMdToHtml', () => {
       '<p>First</p><p><br></p><p>Second</p>',
     );
   });
+
+  it('supports classic Mac carriage-return line endings', () => {
+    expect(parseTxtOrMdToHtml('First\rSecond')).toBe('<p>First</p><p>Second</p>');
+  });
 });

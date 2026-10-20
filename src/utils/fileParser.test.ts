@@ -9,7 +9,7 @@ describe('parseTxtOrMdToHtml', () => {
   });
 
   it('strips a leading UTF-8 BOM from imported text', () => {
-    expect(parseTxtOrMdToHtml('\\uFEFFFirst line')).toBe('<p>First line</p>');
+    expect(parseTxtOrMdToHtml('\uFEFFFirst line')).toBe('<p>First line</p>');
   });
 
   it('preserves blank lines as editable paragraphs', () => {

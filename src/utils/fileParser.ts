@@ -16,7 +16,9 @@ function escapeHtml(value: string): string {
  */
 export function parseTxtOrMdToHtml(text: string): string {
   if (!text) return '';
-  return text
+  // UTF-8 text files may start with a BOM; it is metadata, not visible document text.
+  const normalizedText = text.replace(/^\uFEFF/, '');
+  return normalizedText
     .split(/\r\n|\n|\r/)
     .map(line => line.trim() ? `<p>${escapeHtml(line)}</p>` : '<p><br></p>')
     .join('');

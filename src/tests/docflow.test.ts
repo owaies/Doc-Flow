@@ -36,6 +36,11 @@ describe('DocFlow Core Logic & Upload Parsing Tests', () => {
     test('handles empty files gracefully', () => {
       expect(parseTxtOrMdToHtml('')).toBe('');
     });
+
+    test('escapes HTML-sensitive characters in imported text', () => {
+      const html = parseTxtOrMdToHtml(`A & B <tag> "quoted" 'text'`);
+      expect(html).toBe('<p>A &amp; B &lt;tag&gt; &quot;quoted&quot; &#39;text&#39;</p>');
+    });
   });
 
   // Test Permission Scenarios (Owner, Editor, Viewer, Unrelated)

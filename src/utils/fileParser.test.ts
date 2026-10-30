@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTxtOrMdToHtml } from './fileParser';
+import { parseTextFileToHtml, parseTxtOrMdToHtml } from './fileParser';
 
 describe('parseTxtOrMdToHtml', () => {
   it('escapes HTML-sensitive characters in imported text', () => {
@@ -23,6 +23,32 @@ describe('parseTxtOrMdToHtml', () => {
   });
   it('returns an empty document for empty input', () => {
     expect(parseTxtOrMdToHtml('')).toBe('');
+  });
+
+  it('treats a BOM-only text file as an empty document', () => {
+    expect(parseTxtOrMdToHtml('\\uFEFF')).toBe('');
+  });
+
+  it('preserves leading and trailing spaces on non-empty lines', () => {
+    expect(parseTxtOrMdToHtml('  First line  \\n\\tSecond')).toBe(
+      '<p>  First line  </p><p>\\tSecond</p>',
+    );
+  });
+
+  it('awaits browser text-file reads before returning editor HTML', async () => {
+    const file = { text: async () => '\\uFEFFImported text' } as Pick<Blob, 'text'>;
+
+    await expect(parseTextFileToHtml(file)).resolves.toBe('<p>Imported text</p>');
+  });
+
+  it('propagates text-file read failures to the import handler', async () => {
+    const file = {
+      text: async () => {
+        throw new Error('read failed');
+      },
+    } as Pick<Blob, 'text'>;
+
+    await expect(parseTextFileToHtml(file)).rejects.toThrow('read failed');
   });
 
 });

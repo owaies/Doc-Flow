@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabaseClient';
 import TipTapEditor from './TipTapEditor';
-import { parseTxtOrMdToHtml } from '@/utils/fileParser';
+import { parseTextFileToHtml } from '@/utils/fileParser';
 import { 
   ArrowLeft, Share2, Upload, FileText, Loader2, 
   Check, AlertCircle, Users, Plus, Trash2, Paperclip, X, Download
@@ -230,8 +230,9 @@ export default function EditorPage({ documentId, onBack }: EditorPageProps) {
     setErrorMsg(null);
 
     // Validations
-    const isTextFile = file.name.endsWith('.txt') || file.name.endsWith('.md');
-    const isDocFile = file.name.endsWith('.pdf') || file.name.endsWith('.docx');
+    const normalizedFileName = file.name.toLowerCase();
+    const isTextFile = normalizedFileName.endsWith('.txt') || normalizedFileName.endsWith('.md');
+    const isDocFile = normalizedFileName.endsWith('.pdf') || normalizedFileName.endsWith('.docx');
 
     if (!isTextFile && !isDocFile) {
       setErrorMsg('Unsupported file type. Please upload a .txt, .md, .pdf, or .docx file.');
@@ -252,18 +253,11 @@ export default function EditorPage({ documentId, onBack }: EditorPageProps) {
     setUploading(true);
 
     try {
-      // Step A: Read text and update editor content if it is a text/markdown file
+      // Await text parsing and persistence so the upload state reflects completion.
       if (isTextFile) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const text = event.target?.result as string;
-          const formattedHtml = parseTxtOrMdToHtml(text);
-          
-          // Load into editor and immediately save
-          setContent(formattedHtml);
-          await saveDocument(title, formattedHtml);
-        };
-        reader.readAsText(file);
+        const formattedHtml = await parseTextFileToHtml(file);
+        setContent(formattedHtml);
+        await saveDocument(title, formattedHtml);
       }
 
       // Step B: Attempt storage and attachments table insertion

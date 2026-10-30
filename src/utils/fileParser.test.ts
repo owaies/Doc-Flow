@@ -26,17 +26,17 @@ describe('parseTxtOrMdToHtml', () => {
   });
 
   it('treats a BOM-only text file as an empty document', () => {
-    expect(parseTxtOrMdToHtml('\\uFEFF')).toBe('');
+    expect(parseTxtOrMdToHtml('\uFEFF')).toBe('');
   });
 
   it('preserves leading and trailing spaces on non-empty lines', () => {
-    expect(parseTxtOrMdToHtml('  First line  \\n\\tSecond')).toBe(
-      '<p>  First line  </p><p>\\tSecond</p>',
+    expect(parseTxtOrMdToHtml('  First line  \n\tSecond')).toBe(
+      '<p>  First line  </p><p>\tSecond</p>',
     );
   });
 
   it('awaits browser text-file reads before returning editor HTML', async () => {
-    const file = { text: async () => '\\uFEFFImported text' } as Pick<Blob, 'text'>;
+    const file = { text: async () => '\uFEFFImported text' } as Pick<Blob, 'text'>;
 
     await expect(parseTextFileToHtml(file)).resolves.toBe('<p>Imported text</p>');
   });

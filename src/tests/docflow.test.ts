@@ -1,5 +1,21 @@
+import { act, render, screen } from '@testing-library/react';
 import { describe, test, expect, vi } from 'vitest';
 import { parseTxtOrMdToHtml } from '@/utils/fileParser';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+
+const authMocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  onAuthStateChange: vi.fn(),
+}));
+
+vi.mock('@/utils/supabaseClient', () => ({
+  supabase: { auth: authMocks },
+}));
+
+function AuthStateProbe() {
+  const { user, loading } = useAuth();
+  return <output data-testid="auth-state">{loading ? 'loading' : user?.id ?? 'signed-out'}</output>;
+}
 
 // Simulation of DB authorization helper functions
 function isDocumentOwner(doc: { owner_id: string }, userId: string): boolean {
@@ -25,10 +41,9 @@ function canEditDocument(
 }
 
 describe('DocFlow Core Logic & Upload Parsing Tests', () => {
-  // Test File Upload Parsing
   describe('TXT/MD File Upload Parsing', () => {
     test('converts plain text lines to HTML paragraphs', () => {
-      const rawText = "Hello World\n\nThis is line 2.\nLine 3.";
+      const rawText = "Hello World\\n\\nThis is line 2.\\nLine 3.";
       const html = parseTxtOrMdToHtml(rawText);
       expect(html).toBe('<p>Hello World</p><p><br></p><p>This is line 2.</p><p>Line 3.</p>');
     });
@@ -43,7 +58,6 @@ describe('DocFlow Core Logic & Upload Parsing Tests', () => {
     });
   });
 
-  // Test Permission Scenarios (Owner, Editor, Viewer, Unrelated)
   describe('Document Permissions & Authorization Rules', () => {
     const mockDocument = {
       id: 'doc-123',
@@ -57,66 +71,40 @@ describe('DocFlow Core Logic & Upload Parsing Tests', () => {
       { id: 's2', document_id: 'doc-123', user_id: 'user-viewer', permission: 'viewer' },
     ];
 
-    // 1. Owner Perms
     test('Owner has full access (read, update, delete)', () => {
       const userId = 'user-owner';
-      
-      const isOwner = isDocumentOwner(mockDocument, userId);
-      const hasAccess = hasDocumentAccess(mockDocument, userId, mockShares);
-      const canEdit = canEditDocument(mockDocument, userId, mockShares);
-
-      expect(isOwner).toBe(true);
-      expect(hasAccess).toBe(true);
-      expect(canEdit).toBe(true);
+      expect(isDocumentOwner(mockDocument, userId)).toBe(true);
+      expect(hasDocumentAccess(mockDocument, userId, mockShares)).toBe(true);
+      expect(canEditDocument(mockDocument, userId, mockShares)).toBe(true);
     });
 
-    // 2. Editor Perms
     test('Editor can read and edit, but is not owner (cannot delete)', () => {
       const userId = 'user-editor';
-
-      const isOwner = isDocumentOwner(mockDocument, userId);
-      const hasAccess = hasDocumentAccess(mockDocument, userId, mockShares);
-      const canEdit = canEditDocument(mockDocument, userId, mockShares);
-
-      expect(isOwner).toBe(false); // cannot delete (only owner can delete)
-      expect(hasAccess).toBe(true);  // can read
-      expect(canEdit).toBe(true);    // can edit/update
+      expect(isDocumentOwner(mockDocument, userId)).toBe(false);
+      expect(hasDocumentAccess(mockDocument, userId, mockShares)).toBe(true);
+      expect(canEditDocument(mockDocument, userId, mockShares)).toBe(true);
     });
 
-    // 3. Viewer Perms
     test('Viewer can read, but cannot edit or delete', () => {
       const userId = 'user-viewer';
-
-      const isOwner = isDocumentOwner(mockDocument, userId);
-      const hasAccess = hasDocumentAccess(mockDocument, userId, mockShares);
-      const canEdit = canEditDocument(mockDocument, userId, mockShares);
-
-      expect(isOwner).toBe(false); // cannot delete
-      expect(hasAccess).toBe(true);  // can read
-      expect(canEdit).toBe(false);   // cannot edit/update
+      expect(isDocumentOwner(mockDocument, userId)).toBe(false);
+      expect(hasDocumentAccess(mockDocument, userId, mockShares)).toBe(true);
+      expect(canEditDocument(mockDocument, userId, mockShares)).toBe(false);
     });
 
-    // 4. Unrelated User Perms
     test('Unrelated user has zero access', () => {
       const userId = 'user-intruder';
-
-      const isOwner = isDocumentOwner(mockDocument, userId);
-      const hasAccess = hasDocumentAccess(mockDocument, userId, mockShares);
-      const canEdit = canEditDocument(mockDocument, userId, mockShares);
-
-      expect(isOwner).toBe(false);
-      expect(hasAccess).toBe(false);
-      expect(canEdit).toBe(false);
+      expect(isDocumentOwner(mockDocument, userId)).toBe(false);
+      expect(hasDocumentAccess(mockDocument, userId, mockShares)).toBe(false);
+      expect(canEditDocument(mockDocument, userId, mockShares)).toBe(false);
     });
   });
 
-  // Test Autosave Status State Changes
   describe('Document Save / Persistence State Mock', () => {
     test('transitions states from Saving to Saved on successful mock operation', async () => {
-      let saveStatus: string = '';
+      let saveStatus = '';
       const saveFunction = vi.fn().mockImplementation(async () => {
         saveStatus = 'Saving...';
-        // Simulate database call resolving
         await new Promise(resolve => setTimeout(resolve, 10));
         saveStatus = 'Saved';
       });
@@ -127,10 +115,9 @@ describe('DocFlow Core Logic & Upload Parsing Tests', () => {
     });
 
     test('transitions states to Save failed on mock database error', async () => {
-      let saveStatus: string = '';
+      let saveStatus = '';
       const saveFunction = vi.fn().mockImplementation(async () => {
         saveStatus = 'Saving...';
-        // Simulate database failure
         await new Promise((_, reject) => setTimeout(() => reject(new Error('DB connection failed')), 10));
       });
 
@@ -140,6 +127,38 @@ describe('DocFlow Core Logic & Upload Parsing Tests', () => {
         saveStatus = 'Save failed';
       }
       expect(saveStatus).toBe('Save failed');
+    });
+  });
+
+  describe('Authentication session initialization', () => {
+    test('keeps a newer auth event when the initial session read resolves later', async () => {
+      let resolveSession!: (value: { data: { session: { user: { id: string } } } }) => void;
+      let authListener: ((event: string, session: { user: { id: string } } | null) => void) | undefined;
+      const unsubscribe = vi.fn();
+
+      authMocks.getSession.mockImplementation(() => new Promise(resolve => {
+        resolveSession = resolve;
+      }));
+      authMocks.onAuthStateChange.mockImplementation((callback: typeof authListener) => {
+        authListener = callback;
+        return { data: { subscription: { unsubscribe } } };
+      });
+
+      render(<AuthProvider><AuthStateProbe /></AuthProvider>);
+      expect(screen.getByTestId('auth-state').textContent).toBe('loading');
+
+      act(() => {
+        authListener?.('SIGNED_IN', { user: { id: 'new-user' } });
+      });
+      expect(screen.getByTestId('auth-state').textContent).toBe('new-user');
+
+      await act(async () => {
+        resolveSession({ data: { session: { user: { id: 'stale-user' } } } });
+        await Promise.resolve();
+      });
+
+      expect(screen.getByTestId('auth-state').textContent).toBe('new-user');
+      expect(unsubscribe).not.toHaveBeenCalled();
     });
   });
 });

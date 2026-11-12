@@ -1,3 +1,4 @@
+import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { describe, test, expect, vi } from 'vitest';
 import { parseTxtOrMdToHtml } from '@/utils/fileParser';
@@ -14,7 +15,7 @@ vi.mock('@/utils/supabaseClient', () => ({
 
 function AuthStateProbe() {
   const { user, loading } = useAuth();
-  return <output data-testid="auth-state">{loading ? 'loading' : user?.id ?? 'signed-out'}</output>;
+  return React.createElement('output', { 'data-testid': 'auth-state' }, loading ? 'loading' : user?.id ?? 'signed-out');
 }
 
 // Simulation of DB authorization helper functions
@@ -144,7 +145,7 @@ describe('DocFlow Core Logic & Upload Parsing Tests', () => {
         return { data: { subscription: { unsubscribe } } };
       });
 
-      render(<AuthProvider><AuthStateProbe /></AuthProvider>);
+      render(React.createElement(AuthProvider, null, React.createElement(AuthStateProbe)));
       expect(screen.getByTestId('auth-state').textContent).toBe('loading');
 
       act(() => {

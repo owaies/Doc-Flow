@@ -44,7 +44,7 @@ function canEditDocument(
 describe('DocFlow Core Logic & Upload Parsing Tests', () => {
   describe('TXT/MD File Upload Parsing', () => {
     test('converts plain text lines to HTML paragraphs', () => {
-      const rawText = "Hello World\\n\\nThis is line 2.\\nLine 3.";
+      const rawText = "Hello World\n\nThis is line 2.\nLine 3.";
       const html = parseTxtOrMdToHtml(rawText);
       expect(html).toBe('<p>Hello World</p><p><br></p><p>This is line 2.</p><p>Line 3.</p>');
     });

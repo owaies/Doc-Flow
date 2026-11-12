@@ -21,21 +21,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let mounted = true;
+    let receivedAuthEvent = false;
+
+    // Subscribe before reading the initial session so a newer auth event cannot
+    // be overwritten by a slower getSession() response.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      receivedAuthEvent = true;
+      if (!mounted) return;
       setUser(session?.user ?? null);
-      setLoading(false);
-    }).catch(() => {
       setLoading(false);
     });
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted || receivedAuthEvent) return;
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch(() => {
+      if (!mounted || receivedAuthEvent) return;
       setLoading(false);
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
